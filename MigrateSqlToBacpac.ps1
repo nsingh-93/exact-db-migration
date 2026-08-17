@@ -7,6 +7,10 @@
     BACPAC export is NOT transactionally consistent on a live database.
     Prefer a quiet copy, restored backup, or snapshot when consistency matters.
 
+    Source DB users mapped to server logins cannot be stored in a BACPAC
+    (SQL71501). Export sets VerifyExtraction=false so those references do
+    not fail the package. Recreate Azure users after import with ApplySqlGrants.ps1.
+
 .EXAMPLE
     # Windows auth (default)
     .\MigrateSqlToBacpac.ps1 -SourceServer 'ONPREM-SQL01'
@@ -114,7 +118,7 @@ $results = $todo | ForEach-Object -ThrottleLimit $Throttle -Parallel {
         "/SourceTrustServerCertificate:True"
         "/TargetFile:$bacpac"
         "/OverwriteFiles:True"
-        "/p:VerifyExtraction=true"
+        "/p:VerifyExtraction=false"
     )
     if (-not $using:SourceUseWindowsAuth) {
         $args += "/SourceUser:$($using:SourceUser)"

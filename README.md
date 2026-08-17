@@ -106,6 +106,8 @@ $env:SRC_SQL_PWD = '...'
 
 BACPAC export is **not** transactionally consistent on a busy live database. Prefer a quiet copy, restore, or snapshot when that matters.
 
+Export sets `/p:VerifyExtraction=false` so unresolved DB-user → server-login references (SQL71501) do not fail the BACPAC. Recreate app access on Azure with `ApplySqlGrants.ps1` or `New-StsSubscriber.ps1 -ProvisionSqlLogin`. `IgnoreUserLoginIds` / `ExcludeObjectTypes` are not valid on SqlPackage **Export**.
+
 ### 3. Import into Azure SQL
 
 Creates each database on the logical server (default `sql-exact-dev-001`) as General Purpose `GP_Gen5_2`, then optionally moves it into an elastic pool.
@@ -124,7 +126,9 @@ az login
 .\MigrateBacpacToAzureSql.ps1 -Phase Move
 ```
 
-Expects `migration\bacpac\<name>.bacpac` for each name in `databases.txt`. Reruns skip rows already `Imported` / `Moved` in `migration-state.csv`.
+Expects `migration\bacpac\<name>.bacpac` for each name in `databases.txt`. Before import, a copy under `migration\bacpac\import\` has users, logins, role memberships, and permission statements removed so Azure SQL does not run `CREATE USER FOR LOGIN` for on-prem principals (Msg 15007). Recreate app access with `ApplySqlGrants.ps1`.
+
+If a previous import failed, **drop the leftover Azure database** before retrying (`DROP DATABASE [Name];` in SSMS against `master`). Reruns skip rows already `Imported` / `Moved` in `migration-state.csv`.
 
 ### 4. Grant the app login on each tenant DB
 
